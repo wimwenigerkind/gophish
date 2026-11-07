@@ -72,6 +72,21 @@ jobs:
       - name: Test
         run: go test -p 1 ./...
 
+  chart:
+    name: Helm chart
+    runs-on: ubuntu-latest
+    steps:
+      - uses: actions/checkout@v7
+      - uses: azure/setup-helm@v5
+      - name: Lint
+        run: helm lint charts/gophish
+      - name: Render
+        run: |
+          helm template gophish charts/gophish > /dev/null
+          helm template gophish charts/gophish \
+            --set database.type=postgres --set database.url=postgres://gophish@postgres/gophish \
+            --set ingress.admin.enabled=true --set ingress.phish.enabled=true > /dev/null
+
   release:
     name: GoReleaser snapshot
     runs-on: ubuntu-latest
