@@ -72,6 +72,6 @@ AND p.id=(SELECT "id" FROM "permissions" WHERE "slug"="modify_system");
 
 -- +goose Down
 -- SQL section 'Down' is executed when this migration is rolled back
-DROP TABLE "roles"
-DROP TABLE "user_roles"
-DROP TABLE "permissions"
+DROP TABLE "roles";
+DROP TABLE "user_roles";
+DROP TABLE "permissions";
