@@ -6,6 +6,7 @@ import (
 	"fmt"
 	"math"
 	"net/textproto"
+	"strings"
 	"testing"
 	"time"
 
@@ -17,6 +18,12 @@ import (
 )
 
 func (s *ModelsSuite) emailFromFirstMailLog(campaign Campaign, ch *check.C) *email.Email {
+	got, err := email.NewEmailFromReader(s.rawEmailFromFirstMailLog(campaign, ch))
+	ch.Assert(err, check.Equals, nil)
+	return got
+}
+
+func (s *ModelsSuite) rawEmailFromFirstMailLog(campaign Campaign, ch *check.C) *bytes.Buffer {
 	result := campaign.Results[0]
 	m := &MailLog{}
 	err := db.Where("r_id=? AND campaign_id=?", result.RId, campaign.Id).
@@ -30,10 +37,7 @@ func (s *ModelsSuite) emailFromFirstMailLog(campaign Campaign, ch *check.C) *ema
 	msgBuff := &bytes.Buffer{}
 	_, err = msg.WriteTo(msgBuff)
 	ch.Assert(err, check.Equals, nil)
-
-	got, err := email.NewEmailFromReader(msgBuff)
-	ch.Assert(err, check.Equals, nil)
-	return got
+	return msgBuff
 }
 
 func (s *ModelsSuite) TestGetQueuedMailLogs(ch *check.C) {
@@ -395,13 +399,12 @@ func (s *ModelsSuite) TestEmbedAttachment(ch *check.C) {
 	}
 	PutTemplate(&campaign.Template)
 	ch.Assert(PostCampaign(&campaign, campaign.UserId), check.Equals, nil)
-	got := s.emailFromFirstMailLog(campaign, ch)
+	raw := s.rawEmailFromFirstMailLog(campaign, ch).String()
 
-	// The email package simply ignores attachments where the Content-Disposition header is set
-	// to inline, so the best we can do without replacing the whole thing is to check that only
-	// the text file was added as an attachment.
-	ch.Assert(got.Attachments, check.HasLen, 1)
-	ch.Assert(got.Attachments[0].Filename, check.Equals, "test.txt")
+	// The email package rewrites the Content-Disposition of every attachment
+	// it parses, so the disposition is checked in the raw message.
+	ch.Assert(strings.Contains(raw, `Content-Disposition: inline; filename="test.png"`), check.Equals, true)
+	ch.Assert(strings.Contains(raw, `Content-Disposition: attachment; filename="test.txt"`), check.Equals, true)
 }
 
 func BenchmarkMailLogGenerate100(b *testing.B) {
