@@ -1,0 +1,49 @@
+version: 2
+
+builds:
+  - env:
+      - CGO_ENABLED=0
+    goos:
+      - linux
+      - darwin
+      - windows
+    goarch:
+      - amd64
+      - arm64
+    flags:
+      - -trimpath
+    ldflags:
+      - -s -w -X main.version={{ .Version }}
+
+archives:
+  - formats:
+      - tar.gz
+    format_overrides:
+      - goos: windows
+        formats:
+          - zip
+    wrap_in_directory: true
+    # gophish reads its web assets and templates relative to the working
+    # directory, so they ship next to the binary.
+    files:
+      - LICENSE
+      - README.md
+      - config.json
+      - templates
+      - static/css/dist
+      - static/js/dist
+      - static/js/src/vendor/ckeditor
+      - static/images
+      - static/font
+      - static/db
+
+checksum:
+  name_template: checksums.txt
+
+changelog:
+  sort: asc
+  filters:
+    exclude:
+      - "^test"
+      - "^chore"
+      - "^docs"
