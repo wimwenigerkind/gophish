@@ -50,6 +50,10 @@ const (
 	modePhish string = "phish"
 )
 
+// version is set at build time by GoReleaser from the git tag. Builds without
+// it fall back to the VERSION file.
+var version string
+
 var (
 	configPath    = kingpin.Flag("config", "Location of config.json.").Default("./config.json").String()
 	disableMailer = kingpin.Flag("disable-mailer", "Disable the mailer (for use with multi-system deployments)").Bool()
@@ -58,13 +62,14 @@ var (
 )
 
 func main() {
-	// Load the version
-
-	version, err := ioutil.ReadFile("./VERSION")
-	if err != nil {
-		log.Fatal(err)
+	if version == "" {
+		v, err := ioutil.ReadFile("./VERSION")
+		if err != nil {
+			log.Fatal(err)
+		}
+		version = string(v)
 	}
-	kingpin.Version(string(version))
+	kingpin.Version(version)
 
 	// Parse the CLI flags and load the config
 	kingpin.CommandLine.HelpFlag.Short('h')
@@ -80,7 +85,7 @@ func main() {
 		log.Warnf("No contact address has been configured.")
 		log.Warnf("Please consider adding a contact_address entry in your config.json")
 	}
-	config.Version = string(version)
+	config.Version = version
 
 	// Configure our various upstream clients to make sure that we restrict
 	// outbound connections as needed.
