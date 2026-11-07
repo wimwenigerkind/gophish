@@ -1,20 +1,17 @@
-# Minify client side assets (JavaScript)
-FROM node:latest AS build-js
+# The binary is cross-compiled on the build platform, so only the runtime
+# stage runs emulated when building for another architecture.
+FROM --platform=$BUILDPLATFORM golang:1.27 AS build
 
-RUN npm install gulp gulp-cli -g
+ARG TARGETOS
+ARG TARGETARCH
+ARG VERSION
 
-WORKDIR /build
+WORKDIR /src
+COPY go.mod go.sum ./
+RUN go mod download
 COPY . .
-RUN npm install --only=dev
-RUN gulp
-
-
-# Build Golang binary
-FROM golang:1.27 AS build-golang
-
-WORKDIR /go/src/github.com/gophish/gophish
-COPY . .
-RUN go build -v
+RUN CGO_ENABLED=0 GOOS=$TARGETOS GOARCH=$TARGETARCH \
+	go build -trimpath -ldflags "-s -w -X main.version=${VERSION}" -o /out/gophish .
 
 
 # Runtime container
@@ -28,11 +25,18 @@ RUN apt-get update && \
 	rm -rf /var/lib/apt/lists/* /tmp/* /var/tmp/*
 
 WORKDIR /opt/gophish
-COPY --from=build-golang /go/src/github.com/gophish/gophish/ ./
-COPY --from=build-js /build/static/js/dist/ ./static/js/dist/
-COPY --from=build-js /build/static/css/dist/ ./static/css/dist/
-COPY --from=build-golang /go/src/github.com/gophish/gophish/config.json ./
-RUN chown app. config.json
+COPY --from=build /out/gophish ./
+COPY templates/ ./templates/
+COPY static/css/dist/ ./static/css/dist/
+COPY static/js/dist/ ./static/js/dist/
+COPY static/js/src/vendor/ckeditor/ ./static/js/src/vendor/ckeditor/
+COPY static/images/ ./static/images/
+COPY static/font/ ./static/font/
+COPY static/db/ ./static/db/
+COPY docker/run.sh ./docker/
+COPY VERSION ./
+COPY --chown=app config.json ./
+RUN mkdir -p static/endpoint
 
 RUN setcap 'cap_net_bind_service=+ep' /opt/gophish/gophish
 
