@@ -181,12 +181,14 @@ func AddEvent(e *Event, campaignID int64) error {
 // an error is returned. Otherwise, the attribute name is set to [Deleted],
 // indicating the user deleted the attribute (template, smtp, etc.)
 func (c *Campaign) getDetails() error {
-	err := db.Model(c).Related(&c.Results).Error
+	// Results and events are ordered explicitly, because Postgres returns
+	// updated rows in a different order than they were inserted.
+	err := db.Model(c).Order("id").Related(&c.Results).Error
 	if err != nil {
 		log.Warnf("%s: results not found for campaign", err)
 		return err
 	}
-	err = db.Model(c).Related(&c.Events).Error
+	err = db.Model(c).Order("id").Related(&c.Events).Error
 	if err != nil {
 		log.Warnf("%s: events not found for campaign", err)
 		return err
@@ -417,12 +419,12 @@ func GetCampaignResults(id int64, uid int64) (CampaignResults, error) {
 		}).Error(err)
 		return cr, err
 	}
-	err = db.Table("results").Where("campaign_id=? and user_id=?", cr.Id, uid).Find(&cr.Results).Error
+	err = db.Table("results").Where("campaign_id=? and user_id=?", cr.Id, uid).Order("id").Find(&cr.Results).Error
 	if err != nil {
 		log.Errorf("%s: results not found for campaign", err)
 		return cr, err
 	}
-	err = db.Table("events").Where("campaign_id=?", cr.Id).Find(&cr.Events).Error
+	err = db.Table("events").Where("campaign_id=?", cr.Id).Order("id").Find(&cr.Events).Error
 	if err != nil {
 		log.Errorf("%s: events not found for campaign", err)
 		return cr, err
