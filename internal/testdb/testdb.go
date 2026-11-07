@@ -13,6 +13,7 @@ import (
 	"github.com/gophish/gophish/config"
 
 	_ "github.com/go-sql-driver/mysql"
+	_ "github.com/jackc/pgx/v5/stdlib"
 )
 
 type fataler interface {
@@ -35,7 +36,11 @@ func Config(t fataler) *config.Config {
 }
 
 func reset(name, path string) error {
-	db, err := sql.Open(name, path)
+	driver := name
+	if name == "postgres" {
+		driver = "pgx"
+	}
+	db, err := sql.Open(driver, path)
 	if err != nil {
 		return err
 	}
@@ -43,6 +48,9 @@ func reset(name, path string) error {
 	switch name {
 	case "mysql":
 		return resetMySQL(db)
+	case "postgres":
+		_, err := db.Exec("DROP SCHEMA public CASCADE; CREATE SCHEMA public")
+		return err
 	default:
 		return fmt.Errorf("unsupported test database %q", name)
 	}

@@ -20,6 +20,7 @@ import (
 	migrations "github.com/gophish/gophish/db"
 
 	log "github.com/gophish/gophish/logger"
+	_ "github.com/jackc/pgx/v5/stdlib" // Registers the "pgx" driver
 	"github.com/jinzhu/gorm"
 	"github.com/pressly/goose/v3"
 	_ "modernc.org/sqlite" // Registers the pure Go "sqlite" driver
@@ -87,11 +88,18 @@ func generateSecureKey() string {
 
 // openDB opens the configured database. SQLite goes through the pure Go
 // modernc.org/sqlite driver so gophish builds without cgo, while gorm keeps
-// using its "sqlite3" dialect.
+// using its "sqlite3" dialect. Postgres goes through pgx, which reads
+// timestamp columns back as UTC.
 func openDB(name, path string) (*gorm.DB, error) {
 	switch name {
 	case "mysql":
 		return gorm.Open(name, path)
+	case "postgres":
+		sqlDB, err := sql.Open("pgx", path)
+		if err != nil {
+			return nil, err
+		}
+		return gorm.Open(name, sqlDB)
 	default:
 		sqlDB, err := sql.Open("sqlite", sqliteDSN(path))
 		if err != nil {
