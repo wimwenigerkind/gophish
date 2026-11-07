@@ -7,6 +7,23 @@ Gophish
 
 Gophish: Open-Source Phishing Toolkit
 
+> [!IMPORTANT]
+> **This is a fork of [gophish/gophish](https://github.com/gophish/gophish).** The upstream project has not changed since September 2024, so this fork keeps Gophish current and adds what is needed to run it on modern infrastructure. It is not affiliated with the original authors.
+>
+> **Changes in this fork**
+>
+> - **Go 1.27** and current dependencies
+> - **PostgreSQL** next to SQLite and MySQL (`"db_name": "postgres"`, `db_path` is a `postgres://` URL)
+> - **No cgo:** SQLite uses a pure Go driver, so the binary cross-compiles and runs anywhere
+> - **Embedded migrations** with [goose](https://github.com/pressly/goose), so the binary no longer needs the `db/` directory
+> - **MySQL** works with the server's default `sql_mode`, no server changes required
+> - **Releases** built by GoReleaser for Linux, macOS and Windows on amd64 and arm64
+> - **Container image** for amd64 and arm64 at `ghcr.io/wimwenigerkind/gophish`, without the source code and without file capabilities, so it runs in restricted Kubernetes pods
+> - **Helm chart** in [`charts/gophish`](charts/gophish)
+> - **No secrets in the logs:** the container no longer prints its config, which contained the database password
+>
+> **Not compatible with upstream databases:** the migrations were squashed into one baseline per database, so a database created by upstream Gophish cannot be upgraded. Start with a fresh database.
+
 [Gophish](https://getgophish.com) is an open-source phishing toolkit designed for businesses and penetration testers. It provides the ability to quickly and easily setup and execute phishing engagements and security awareness training.
 
 ### Install
