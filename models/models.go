@@ -5,11 +5,13 @@ import (
 	"crypto/rand"
 	"crypto/tls"
 	"crypto/x509"
+	"database/sql"
 	"fmt"
 	"io"
 	"io/fs"
 	"io/ioutil"
 	"os"
+	"strings"
 	"time"
 
 	mysql "github.com/go-sql-driver/mysql"
@@ -19,8 +21,8 @@ import (
 
 	log "github.com/gophish/gophish/logger"
 	"github.com/jinzhu/gorm"
-	_ "github.com/mattn/go-sqlite3" // Blank import needed to import sqlite3
 	"github.com/pressly/goose/v3"
+	_ "modernc.org/sqlite" // Registers the pure Go "sqlite" driver
 )
 
 var db *gorm.DB
@@ -81,6 +83,33 @@ func generateSecureKey() string {
 	k := make([]byte, 32)
 	io.ReadFull(rand.Reader, k)
 	return fmt.Sprintf("%x", k)
+}
+
+// openDB opens the configured database. SQLite goes through the pure Go
+// modernc.org/sqlite driver so gophish builds without cgo, while gorm keeps
+// using its "sqlite3" dialect.
+func openDB(name, path string) (*gorm.DB, error) {
+	switch name {
+	case "mysql":
+		return gorm.Open(name, path)
+	default:
+		sqlDB, err := sql.Open("sqlite", sqliteDSN(path))
+		if err != nil {
+			return nil, err
+		}
+		return gorm.Open("sqlite3", sqlDB)
+	}
+}
+
+// sqliteDSN makes modernc.org/sqlite handle timestamps the way
+// mattn/go-sqlite3 did: written in a format that sorts and compares correctly
+// as text, and read back in UTC rather than in a fixed +0000 zone.
+func sqliteDSN(path string) string {
+	sep := "?"
+	if strings.Contains(path, "?") {
+		sep = "&"
+	}
+	return path + sep + "_time_format=sqlite&_timezone=UTC"
 }
 
 // migrate applies every embedded migration of the configured dialect that the
@@ -163,7 +192,7 @@ func Setup(c *config.Config) error {
 	// Open our database connection
 	i := 0
 	for {
-		db, err = gorm.Open(conf.DBName, conf.DBPath)
+		db, err = openDB(conf.DBName, conf.DBPath)
 		if err == nil {
 			break
 		}
