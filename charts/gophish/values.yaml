@@ -2,12 +2,12 @@
 # This is a YAML-formatted file.
 # Declare variables to be passed into your templates.
 
-# This will set the replicaset count more information can be found here: https://kubernetes.io/docs/concepts/workloads/controllers/replicaset/
-replicaCount: 1
+# gophish always runs as a single replica: the worker in every replica sends
+# the queued emails, so a second replica would send each campaign twice.
 
 # This sets the container image more information can be found here: https://kubernetes.io/docs/concepts/containers/images/
 image:
-  repository: nginx
+  repository: ghcr.io/wimwenigerkind/gophish
   # This sets the pull policy for images.
   pullPolicy: IfNotPresent
   # Overrides the image tag whose default is the chart appVersion.
@@ -19,16 +19,46 @@ imagePullSecrets: []
 nameOverride: ""
 fullnameOverride: ""
 
+# Address shown to recipients who report a phishing email to the sender.
+contactAddress: ""
+
+database:
+  # sqlite3, mysql or postgres
+  type: sqlite3
+  # Connection string for mysql or postgres, ignored when existingSecret is set, e.g.
+  # postgres://gophish:secret@postgres:5432/gophish?sslmode=disable
+  # gophish:secret@tcp(mysql:3306)/gophish?charset=utf8&parseTime=True&loc=UTC
+  url: ""
+  # Secret that holds the connection string, e.g. one managed by ExternalSecrets.
+  existingSecret: ""
+  existingSecretKey: url
+
+# Volume for the SQLite database, unused with mysql or postgres.
+persistence:
+  size: 1Gi
+  storageClass: ""
+  accessModes:
+    - ReadWriteOnce
+
+admin:
+  # Origins allowed to post to the admin UI besides its own, e.g. when it is
+  # reached under another host name.
+  trustedOrigins: []
+  # Secret with the password of the admin user created on first start.
+  # Without it, gophish generates one and logs it once.
+  existingSecret: ""
+  existingSecretKey: password
+
 # This section builds out the service account more information can be found here: https://kubernetes.io/docs/concepts/security/service-accounts/
 serviceAccount:
-  # Specifies whether a service account should be created.
+  # Specifies whether a service account should be created
   create: true
-  # Automatically mount a ServiceAccount's API credentials?
-  automount: true
-  # Annotations to add to the service account.
+  # gophish does not talk to the Kubernetes API.
+  automount: false
+  # Annotations to add to the service account
   annotations: {}
   # The name of the service account to use.
-  # If not set and create is true, a name is generated using the fullname template.
+  # If not set and create is true, a name is generated using the fullname template
   name: ""
 
 # This is for setting Kubernetes Annotations to a Pod.
@@ -38,78 +68,57 @@ podAnnotations: {}
 # For more information checkout: https://kubernetes.io/docs/concepts/overview/working-with-objects/labels/
 podLabels: {}
 
-podSecurityContext: {}
-  # fsGroup: 2000
+# Meets the restricted Pod Security Standard; the image runs as uid 1000.
+podSecurityContext:
+  runAsNonRoot: true
+  runAsUser: 1000
+  runAsGroup: 1000
+  fsGroup: 1000
+  seccompProfile:
+    type: RuntimeDefault
 
-securityContext: {}
-  # capabilities:
-  #   drop:
-  #   - ALL
-  # readOnlyRootFilesystem: true
-  # runAsNonRoot: true
-  # runAsUser: 1000
+securityContext:
+  allowPrivilegeEscalation: false
+  capabilities:
+    drop:
+      - ALL
 
-# This is for setting up a service more information can be found here: https://kubernetes.io/docs/concepts/services-networking/service/
+# Two services, so the admin UI can stay internal while the phishing server
+# is exposed. More information: https://kubernetes.io/docs/concepts/services-networking/service/
 service:
   # This sets the service type more information can be found here: https://kubernetes.io/docs/concepts/services-networking/service/#publishing-services-service-types
   type: ClusterIP
-  # This sets the ports more information can be found here: https://kubernetes.io/docs/concepts/services-networking/service/#field-spec-ports
-  port: 80
+  adminPort: 3333
+  phishPort: 80
 
 # This block is for setting up the ingress for more information can be found here: https://kubernetes.io/docs/concepts/services-networking/ingress/
 ingress:
-  enabled: false
-  className: ""
-  annotations: {}
-    # kubernetes.io/ingress.class: nginx
-    # kubernetes.io/tls-acme: "true"
-  hosts:
-    - host: chart-example.local
-      paths:
-        - path: /
-          pathType: ImplementationSpecific
-  tls: []
-    # - secretName: chart-example-tls
-    #   hosts:
-    #     - chart-example.local
-
-# -- Expose the service via gateway-api HTTPRoute
-# Requires Gateway API resources and suitable controller installed within the cluster
-# (see: https://gateway-api.sigs.k8s.io/guides/)
-httpRoute:
-  # HTTPRoute enabled.
-  enabled: false
-  # HTTPRoute annotations.
-  annotations: {}
-  # Which Gateways this Route is attached to.
-  parentRefs:
-  - name: gateway
-    sectionName: http
-    # namespace: default
-  # Hostnames matching HTTP header.
-  hostnames:
-  - chart-example.local
-  # List of rules and filters applied.
-  rules:
-  - matches:
-    - path:
-        type: PathPrefix
-        value: /headers
-  #   filters:
-  #   - type: RequestHeaderModifier
-  #     requestHeaderModifier:
-  #       set:
-  #       - name: My-Overwrite-Header
-  #         value: this-is-the-only-value
-  #       remove:
-  #       - User-Agent
-  # - matches:
-  #   - path:
-  #       type: PathPrefix
-  #       value: /echo
-  #     headers:
-  #     - name: version
-  #       value: v2
+  admin:
+    enabled: false
+    className: ""
+    annotations: {}
+      # kubernetes.io/ingress.class: nginx
+      # kubernetes.io/tls-acme: "true"
+    hosts:
+      - host: gophish-admin.local
+        paths:
+          - path: /
+            pathType: Prefix
+    tls: []
+    #  - secretName: gophish-admin-tls
+    #    hosts:
+    #      - gophish-admin.local
+  # Campaigns often use several domains, one host each.
+  phish:
+    enabled: false
+    className: ""
+    annotations: {}
+    hosts:
+      - host: gophish.local
+        paths:
+          - path: /
+            pathType: Prefix
+    tls: []
 
 resources: {}
   # We usually recommend not to specify default resources and to leave this as a conscious
@@ -123,36 +132,34 @@ resources: {}
   #   cpu: 100m
   #   memory: 128Mi
 
-# This is to setup the liveness and readiness probes more information can be found here: https://kubernetes.io/docs/tasks/configure-pod-container/configure-liveness-readiness-startup-probes/
+# This is to setup the liveness, readiness and startup probes more information can be found here: https://kubernetes.io/docs/tasks/configure-pod-container/configure-liveness-readiness-startup-probes/
+# gophish runs its migrations before it listens, so the startup probe waits
+# for that first.
+startupProbe:
+  tcpSocket:
+    port: admin
+  periodSeconds: 5
+  failureThreshold: 60
 livenessProbe:
-  httpGet:
-    path: /
-    port: http
+  tcpSocket:
+    port: admin
 readinessProbe:
   httpGet:
-    path: /
-    port: http
-
-# This section is for setting up autoscaling more information can be found here: https://kubernetes.io/docs/concepts/workloads/autoscaling/
-autoscaling:
-  enabled: false
-  minReplicas: 1
-  maxReplicas: 100
-  targetCPUUtilizationPercentage: 80
-  # targetMemoryUtilizationPercentage: 80
+    path: /login
+    port: admin
 
 # Additional volumes on the output Deployment definition.
 volumes: []
-  # - name: foo
-  #   secret:
-  #     secretName: mysecret
-  #     optional: false
+# - name: foo
+#   secret:
+#     secretName: mysecret
+#     optional: false
 
 # Additional volumeMounts on the output Deployment definition.
 volumeMounts: []
-  # - name: foo
-  #   mountPath: "/etc/foo"
-  #   readOnly: true
+# - name: foo
+#   mountPath: "/etc/foo"
+#   readOnly: true
 
 nodeSelector: {}
 

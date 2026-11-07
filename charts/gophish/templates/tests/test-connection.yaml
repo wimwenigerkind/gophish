@@ -7,9 +7,21 @@ metadata:
   annotations:
     "helm.sh/hook": test
 spec:
+  # Restricted like the gophish pod, so the test runs in the same namespaces.
+  securityContext:
+    runAsNonRoot: true
+    runAsUser: 65534
+    seccompProfile:
+      type: RuntimeDefault
   containers:
     - name: wget
       image: busybox
       command: ['wget']
-      args: ['{{ include "gophish.fullname" . }}:{{ .Values.service.port }}']
+      # Discards the page, as a non-root user may not write to the working directory.
+      args: ['-q', '-O', '/dev/null', '{{ include "gophish.fullname" . }}-admin:{{ .Values.service.adminPort }}/login']
+      securityContext:
+        allowPrivilegeEscalation: false
+        capabilities:
+          drop:
+            - ALL
   restartPolicy: Never

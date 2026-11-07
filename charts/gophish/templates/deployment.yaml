@@ -1,3 +1,10 @@
+{{- $sqlite := eq .Values.database.type "sqlite3" }}
+{{- if not (has .Values.database.type (list "sqlite3" "mysql" "postgres")) }}
+{{- fail "database.type must be sqlite3, mysql or postgres" }}
+{{- end }}
+{{- if and (not $sqlite) (not .Values.database.url) (not .Values.database.existingSecret) }}
+{{- fail "database.url or database.existingSecret is required for mysql and postgres" }}
+{{- end }}
 apiVersion: apps/v1
 kind: Deployment
 metadata:
@@ -5,9 +12,11 @@ metadata:
   labels:
     {{- include "gophish.labels" . | nindent 4 }}
 spec:
-  {{- if not .Values.autoscaling.enabled }}
-  replicas: {{ .Values.replicaCount }}
-  {{- end }}
+  # A single replica, see values.yaml. Recreate keeps the old pod from sending
+  # while the new one starts.
+  replicas: 1
+  strategy:
+    type: Recreate
   selector:
     matchLabels:
       {{- include "gophish.selectorLabels" . | nindent 6 }}
@@ -40,10 +49,55 @@ spec:
           {{- end }}
           image: "{{ .Values.image.repository }}:{{ .Values.image.tag | default .Chart.AppVersion }}"
           imagePullPolicy: {{ .Values.image.pullPolicy }}
+          env:
+            - name: ADMIN_LISTEN_URL
+              value: "0.0.0.0:3333"
+            # TLS ends at the ingress.
+            - name: ADMIN_USE_TLS
+              value: "false"
+            {{- with .Values.admin.trustedOrigins }}
+            - name: ADMIN_TRUSTED_ORIGINS
+              value: {{ join "," . | quote }}
+            {{- end }}
+            # An unprivileged port, so the container needs no capabilities.
+            - name: PHISH_LISTEN_URL
+              value: "0.0.0.0:8080"
+            - name: PHISH_USE_TLS
+              value: "false"
+            {{- with .Values.contactAddress }}
+            - name: CONTACT_ADDRESS
+              value: {{ . | quote }}
+            {{- end }}
+            - name: DB_NAME
+              value: {{ .Values.database.type | quote }}
+            {{- if $sqlite }}
+            - name: DB_FILE_PATH
+              value: /opt/gophish/data/gophish.db
+            {{- else }}
+            - name: DB_FILE_PATH
+              valueFrom:
+                secretKeyRef:
+                  name: {{ include "gophish.databaseSecretName" . }}
+                  key: {{ .Values.database.existingSecretKey }}
+            {{- end }}
+            {{- with .Values.admin.existingSecret }}
+            - name: GOPHISH_INITIAL_ADMIN_PASSWORD
+              valueFrom:
+                secretKeyRef:
+                  name: {{ . }}
+                  key: {{ $.Values.admin.existingSecretKey }}
+            {{- end }}
           ports:
-            - name: http
-              containerPort: {{ .Values.service.port }}
+            - name: admin
+              containerPort: 3333
               protocol: TCP
+            - name: phish
+              containerPort: 8080
+              protocol: TCP
+          {{- with .Values.startupProbe }}
+          startupProbe:
+            {{- toYaml . | nindent 12 }}
+          {{- end }}
           {{- with .Values.livenessProbe }}
           livenessProbe:
             {{- toYaml . | nindent 12 }}
@@ -56,13 +110,26 @@ spec:
           resources:
             {{- toYaml . | nindent 12 }}
           {{- end }}
-          {{- with .Values.volumeMounts }}
+          {{- if or $sqlite .Values.volumeMounts }}
           volumeMounts:
+            {{- if $sqlite }}
+            - name: data
+              mountPath: /opt/gophish/data
+            {{- end }}
+            {{- with .Values.volumeMounts }}
             {{- toYaml . | nindent 12 }}
+            {{- end }}
           {{- end }}
-      {{- with .Values.volumes }}
+      {{- if or $sqlite .Values.volumes }}
       volumes:
+        {{- if $sqlite }}
+        - name: data
+          persistentVolumeClaim:
+            claimName: {{ include "gophish.fullname" . }}
+        {{- end }}
+        {{- with .Values.volumes }}
         {{- toYaml . | nindent 8 }}
+        {{- end }}
       {{- end }}
       {{- with .Values.nodeSelector }}
       nodeSelector:

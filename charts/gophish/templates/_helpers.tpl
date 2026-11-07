@@ -60,3 +60,10 @@ Create the name of the service account to use
 {{- default "default" .Values.serviceAccount.name }}
 {{- end }}
 {{- end }}
+
+{{/*
+Name of the secret that holds the database connection string.
+*/}}
+{{- define "gophish.databaseSecretName" -}}
+{{- .Values.database.existingSecret | default (printf "%s-database" (include "gophish.fullname" .)) }}
+{{- end }}

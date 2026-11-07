@@ -1,15 +1,18 @@
+{{- range $name := list "admin" "phish" }}
+---
 apiVersion: v1
 kind: Service
 metadata:
-  name: {{ include "gophish.fullname" . }}
+  name: {{ include "gophish.fullname" $ }}-{{ $name }}
   labels:
-    {{- include "gophish.labels" . | nindent 4 }}
+    {{- include "gophish.labels" $ | nindent 4 }}
 spec:
-  type: {{ .Values.service.type }}
+  type: {{ $.Values.service.type }}
   ports:
-    - port: {{ .Values.service.port }}
-      targetPort: http
+    - port: {{ index $.Values.service (printf "%sPort" $name) }}
+      targetPort: {{ $name }}
       protocol: TCP
-      name: http
+      name: {{ $name }}
   selector:
-    {{- include "gophish.selectorLabels" . | nindent 4 }}
+    {{- include "gophish.selectorLabels" $ | nindent 4 }}
+{{- end }}
