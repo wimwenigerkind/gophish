@@ -93,7 +93,16 @@ func generateSecureKey() string {
 func openDB(name, path string) (*gorm.DB, error) {
 	switch name {
 	case "mysql":
-		return gorm.Open(name, path)
+		cfg, err := mysql.ParseDSN(path)
+		if err != nil {
+			return nil, err
+		}
+		allowZeroDates(cfg)
+		connector, err := mysql.NewConnector(cfg)
+		if err != nil {
+			return nil, err
+		}
+		return gorm.Open(name, sql.OpenDB(connector))
 	case "postgres":
 		sqlDB, err := sql.Open("pgx", path)
 		if err != nil {
@@ -107,6 +116,20 @@ func openDB(name, path string) (*gorm.DB, error) {
 		}
 		return gorm.Open("sqlite3", sqlDB)
 	}
+}
+
+// allowZeroDates lets the gophish sessions store an empty time.Time, which
+// the MySQL driver writes as '0000-00-00'. The server's own sql_mode is kept
+// apart from NO_ZERO_DATE and NO_ZERO_IN_DATE, which MySQL enables by default.
+// A sql_mode set in db_path wins.
+func allowZeroDates(cfg *mysql.Config) {
+	if _, ok := cfg.Params["sql_mode"]; ok {
+		return
+	}
+	if cfg.Params == nil {
+		cfg.Params = map[string]string{}
+	}
+	cfg.Params["sql_mode"] = "REPLACE(REPLACE(@@SESSION.sql_mode, 'NO_ZERO_IN_DATE', ''), 'NO_ZERO_DATE', '')"
 }
 
 // sqliteDSN makes modernc.org/sqlite handle timestamps the way
