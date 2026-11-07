@@ -60,3 +60,25 @@ jobs:
           labels: ${{ steps.meta.outputs.labels }}
           cache-from: type=gha
           cache-to: type=gha,mode=max
+
+  chart:
+    name: Helm chart
+    runs-on: ubuntu-latest
+    permissions:
+      contents: read
+      packages: write
+    steps:
+      - uses: actions/checkout@v7
+      - uses: azure/setup-helm@v5
+      - name: Package
+        # The chart and the image share the version of the tag without its v,
+        # so the chart's default image tag exists.
+        run: |
+          version="${GITHUB_REF_NAME#v}"
+          helm package charts/gophish --version "$version" --app-version "$version"
+      - name: Push
+        env:
+          GITHUB_TOKEN: ${{ secrets.GITHUB_TOKEN }}
+        run: |
+          echo "$GITHUB_TOKEN" | helm registry login ghcr.io --username "$GITHUB_ACTOR" --password-stdin
+          helm push gophish-*.tgz "oci://ghcr.io/$GITHUB_REPOSITORY_OWNER/charts"
