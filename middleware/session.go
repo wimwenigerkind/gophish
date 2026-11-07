@@ -2,6 +2,7 @@ package middleware
 
 import (
 	"encoding/gob"
+	"net/http"
 
 	"github.com/gophish/gophish/models"
 	"github.com/gorilla/securecookie"
@@ -13,6 +14,10 @@ func init() {
 	gob.Register(&models.User{})
 	gob.Register(&models.Flash{})
 	Store.Options.HttpOnly = true
+	// gorilla/sessions defaults the cookie to SameSite=None since v1.3, and
+	// browsers such as Chrome drop a SameSite=None cookie that is not Secure,
+	// which gophish never sets. The admin session is same-site, so Lax is enough.
+	Store.Options.SameSite = http.SameSiteLaxMode
 	// This sets the maxAge to 5 days for all cookies
 	Store.MaxAge(86400 * 5)
 }
