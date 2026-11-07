@@ -30,6 +30,21 @@ func CSRFExceptions(handler http.Handler) http.HandlerFunc {
 	}
 }
 
+// CSRFPlaintext marks requests that reached the admin server without TLS as
+// plaintext for the CSRF middleware. Since gorilla/csrf v1.7.3 every request
+// is assumed to be HTTPS unless marked otherwise, which rejects every form
+// post on an admin server that runs without TLS. A request is only treated as
+// HTTPS when a reverse proxy says so through X-Forwarded-Proto, which
+// handlers.ProxyHeaders copies into r.URL.Scheme.
+func CSRFPlaintext(handler http.Handler) http.HandlerFunc {
+	return func(w http.ResponseWriter, r *http.Request) {
+		if r.TLS == nil && r.URL.Scheme != "https" {
+			r = csrf.PlaintextHTTPRequest(r)
+		}
+		handler.ServeHTTP(w, r)
+	}
+}
+
 // Use allows us to stack middleware to process the request
 // Example taken from https://github.com/gorilla/mux/pull/36#issuecomment-25849172
 func Use(handler http.HandlerFunc, mid ...func(http.Handler) http.HandlerFunc) http.HandlerFunc {
