@@ -6,6 +6,8 @@ import (
 	"os"
 	"testing"
 
+	"github.com/gophish/gophish/internal/testdb"
+
 	"github.com/gophish/gophish/auth"
 	"github.com/gophish/gophish/config"
 	"github.com/gophish/gophish/models"
@@ -23,10 +25,7 @@ type testContext struct {
 func setupTest(t *testing.T) *testContext {
 	wd, _ := os.Getwd()
 	fmt.Println(wd)
-	conf := &config.Config{
-		DBName: "sqlite3",
-		DBPath: ":memory:",
-	}
+	conf := testdb.Config(t)
 	err := models.Setup(conf)
 	if err != nil {
 		t.Fatalf("error setting up database: %v", err)

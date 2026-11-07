@@ -6,8 +6,8 @@ import (
 	"net/http/httptest"
 	"testing"
 
-	"github.com/gophish/gophish/config"
 	ctx "github.com/gophish/gophish/context"
+	"github.com/gophish/gophish/internal/testdb"
 	"github.com/gophish/gophish/models"
 )
 
@@ -20,10 +20,7 @@ type testContext struct {
 }
 
 func setupTest(t *testing.T) *testContext {
-	conf := &config.Config{
-		DBName: "sqlite3",
-		DBPath: ":memory:",
-	}
+	conf := testdb.Config(t)
 	err := models.Setup(conf)
 	if err != nil {
 		t.Fatalf("Failed creating database: %v", err)

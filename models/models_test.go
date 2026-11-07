@@ -3,6 +3,8 @@ package models
 import (
 	"testing"
 
+	"github.com/gophish/gophish/internal/testdb"
+
 	"github.com/gophish/gophish/config"
 	"gopkg.in/check.v1"
 )
@@ -17,10 +19,7 @@ type ModelsSuite struct {
 var _ = check.Suite(&ModelsSuite{})
 
 func (s *ModelsSuite) SetUpSuite(c *check.C) {
-	conf := &config.Config{
-		DBName: "sqlite3",
-		DBPath: ":memory:",
-	}
+	conf := testdb.Config(c)
 	s.config = conf
 	err := Setup(conf)
 	if err != nil {
@@ -104,10 +103,7 @@ func (s *ModelsSuite) createCampaign(ch *check.C) Campaign {
 }
 
 func setupBenchmark(b *testing.B) {
-	conf := &config.Config{
-		DBName: "sqlite3",
-		DBPath: ":memory:",
-	}
+	conf := testdb.Config(b)
 	err := Setup(conf)
 	if err != nil {
 		b.Fatalf("Failed creating database: %v", err)
