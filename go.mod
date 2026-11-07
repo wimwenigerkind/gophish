@@ -3,7 +3,6 @@ module github.com/gophish/gophish
 go 1.27
 
 require (
-	bitbucket.org/liamstask/goose v0.0.0-20150115234039-8488cc47d90c
 	github.com/NYTimes/gziphandler v1.1.1
 	github.com/PuerkitoBio/goquery v1.13.0
 	github.com/emersion/go-imap v1.2.1
@@ -21,6 +20,7 @@ require (
 	github.com/jordan-wright/unindexed v0.0.0-20181209214434-78fa79113c0f
 	github.com/mattn/go-sqlite3 v2.0.3+incompatible
 	github.com/oschwald/maxminddb-golang v1.13.1
+	github.com/pressly/goose/v3 v3.29.0
 	github.com/sirupsen/logrus v1.10.2
 	golang.org/x/crypto v0.58.0
 	golang.org/x/time v0.16.0
@@ -38,13 +38,10 @@ require (
 	github.com/jinzhu/inflection v1.0.0 // indirect
 	github.com/kr/pretty v0.3.1 // indirect
 	github.com/kr/text v0.2.0 // indirect
-	github.com/kylelemons/go-gypsy v1.0.0 // indirect
 	github.com/lib/pq v1.12.3 // indirect
 	github.com/mfridman/interpolate v0.0.2 // indirect
-	github.com/pressly/goose/v3 v3.29.0 // indirect
 	github.com/rogpeppe/go-internal v1.16.0 // indirect
 	github.com/sethvargo/go-retry v0.5.0 // indirect
-	github.com/ziutek/mymysql v1.5.4 // indirect
 	go.uber.org/multierr v1.11.0 // indirect
 	golang.org/x/net v0.62.0 // indirect
 	golang.org/x/sync v0.24.0 // indirect

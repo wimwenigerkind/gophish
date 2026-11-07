@@ -4,7 +4,6 @@ import (
 	"fmt"
 	"net/http/httptest"
 	"os"
-	"path/filepath"
 	"testing"
 
 	"github.com/gophish/gophish/auth"
@@ -25,12 +24,9 @@ func setupTest(t *testing.T) *testContext {
 	wd, _ := os.Getwd()
 	fmt.Println(wd)
 	conf := &config.Config{
-		DBName:         "sqlite3",
-		DBPath:         ":memory:",
-		MigrationsPath: "../db/db_sqlite3/migrations/",
+		DBName: "sqlite3",
+		DBPath: ":memory:",
 	}
-	abs, _ := filepath.Abs("../db/db_sqlite3/migrations/")
-	fmt.Printf("in controllers_test.go: %s\n", abs)
 	err := models.Setup(conf)
 	if err != nil {
 		t.Fatalf("error setting up database: %v", err)

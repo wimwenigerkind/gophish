@@ -33,7 +33,6 @@ type Config struct {
 	DBName         string      `json:"db_name"`
 	DBPath         string      `json:"db_path"`
 	DBSSLCaPath    string      `json:"db_sslca_path"`
-	MigrationsPath string      `json:"migrations_prefix"`
 	TestFlag       bool        `json:"test_flag"`
 	ContactAddress string      `json:"contact_address"`
 	Logging        *log.Config `json:"logging"`
@@ -60,8 +59,6 @@ func LoadConfig(filepath string) (*Config, error) {
 	if config.Logging == nil {
 		config.Logging = &log.Config{}
 	}
-	// Choosing the migrations directory based on the database used.
-	config.MigrationsPath = config.MigrationsPath + config.DBName
 	// Explicitly set the TestFlag to false to prevent config.json overrides
 	config.TestFlag = false
 	return config, nil

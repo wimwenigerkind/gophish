@@ -21,9 +21,8 @@ type testContext struct {
 
 func setupTest(t *testing.T) *testContext {
 	conf := &config.Config{
-		DBName:         "sqlite3",
-		DBPath:         ":memory:",
-		MigrationsPath: "../../db/db_sqlite3/migrations/",
+		DBName: "sqlite3",
+		DBPath: ":memory:",
 	}
 	err := models.Setup(conf)
 	if err != nil {

@@ -18,9 +18,8 @@ var _ = check.Suite(&ModelsSuite{})
 
 func (s *ModelsSuite) SetUpSuite(c *check.C) {
 	conf := &config.Config{
-		DBName:         "sqlite3",
-		DBPath:         ":memory:",
-		MigrationsPath: "../db/db_sqlite3/migrations/",
+		DBName: "sqlite3",
+		DBPath: ":memory:",
 	}
 	s.config = conf
 	err := Setup(conf)
@@ -106,9 +105,8 @@ func (s *ModelsSuite) createCampaign(ch *check.C) Campaign {
 
 func setupBenchmark(b *testing.B) {
 	conf := &config.Config{
-		DBName:         "sqlite3",
-		DBPath:         ":memory:",
-		MigrationsPath: "../db/db_sqlite3/migrations/",
+		DBName: "sqlite3",
+		DBPath: ":memory:",
 	}
 	err := Setup(conf)
 	if err != nil {

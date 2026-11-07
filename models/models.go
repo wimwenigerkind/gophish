@@ -1,24 +1,26 @@
 package models
 
 import (
+	"context"
 	"crypto/rand"
 	"crypto/tls"
 	"crypto/x509"
 	"fmt"
 	"io"
+	"io/fs"
 	"io/ioutil"
 	"os"
 	"time"
 
-	"bitbucket.org/liamstask/goose/lib/goose"
-
 	mysql "github.com/go-sql-driver/mysql"
 	"github.com/gophish/gophish/auth"
 	"github.com/gophish/gophish/config"
+	migrations "github.com/gophish/gophish/db"
 
 	log "github.com/gophish/gophish/logger"
 	"github.com/jinzhu/gorm"
 	_ "github.com/mattn/go-sqlite3" // Blank import needed to import sqlite3
+	"github.com/pressly/goose/v3"
 )
 
 var db *gorm.DB
@@ -81,21 +83,22 @@ func generateSecureKey() string {
 	return fmt.Sprintf("%x", k)
 }
 
-func chooseDBDriver(name, openStr string) goose.DBDriver {
-	d := goose.DBDriver{Name: name, OpenStr: openStr}
-
-	switch name {
-	case "mysql":
-		d.Import = "github.com/go-sql-driver/mysql"
-		d.Dialect = &goose.MySqlDialect{}
-
-	// Default database is sqlite3
-	default:
-		d.Import = "github.com/mattn/go-sqlite3"
-		d.Dialect = &goose.Sqlite3Dialect{}
+// migrate applies every embedded migration of the configured dialect that the
+// database has not seen yet.
+func migrate(dialect string) error {
+	fsys, err := fs.Sub(migrations.Migrations, "db_"+dialect+"/migrations")
+	if err != nil {
+		return err
 	}
-
-	return d
+	provider, err := goose.NewProvider(goose.Dialect(dialect), db.DB(), fsys)
+	if err != nil {
+		return err
+	}
+	results, err := provider.Up(context.Background())
+	for _, r := range results {
+		log.Infof("Applied migration %s", r.Source.Path)
+	}
+	return err
 }
 
 func createTemporaryPassword(u *User) error {
@@ -133,19 +136,7 @@ func createTemporaryPassword(u *User) error {
 func Setup(c *config.Config) error {
 	// Setup the package-scoped config
 	conf = c
-	// Setup the goose configuration
-	migrateConf := &goose.DBConf{
-		MigrationsDir: conf.MigrationsPath,
-		Env:           "production",
-		Driver:        chooseDBDriver(conf.DBName, conf.DBPath),
-	}
-	// Get the latest possible migration
-	latest, err := goose.GetMostRecentDBVersion(migrateConf.MigrationsDir)
-	if err != nil {
-		log.Error(err)
-		return err
-	}
-
+	var err error
 	// Register certificates for tls encrypted db connections
 	if conf.DBSSLCaPath != "" {
 		switch conf.DBName {
@@ -192,7 +183,7 @@ func Setup(c *config.Config) error {
 		return err
 	}
 	// Migrate up to the latest version
-	err = goose.RunMigrationsOnDb(migrateConf, migrateConf.MigrationsDir, latest, db.DB())
+	err = migrate(conf.DBName)
 	if err != nil {
 		log.Error(err)
 		return err
