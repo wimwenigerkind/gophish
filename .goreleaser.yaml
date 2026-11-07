@@ -42,6 +42,7 @@ checksum:
 
 changelog:
   sort: asc
+  abbrev: 7
   filters:
     exclude:
       - "^test"
