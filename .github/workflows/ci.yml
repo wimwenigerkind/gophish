@@ -35,9 +35,7 @@ jobs:
           - db: sqlite3
             path: ":memory:"
           - db: mysql
-            # The driver writes an empty time.Time as '0000-00-00', which
-            # MySQL rejects with NO_ZERO_DATE in its default sql_mode.
-            path: "root:gophish@tcp(127.0.0.1:3306)/gophish_test?charset=utf8&parseTime=True&loc=UTC&sql_mode=%27STRICT_TRANS_TABLES,ERROR_FOR_DIVISION_BY_ZERO,NO_ENGINE_SUBSTITUTION%27"
+            path: "root:gophish@tcp(127.0.0.1:3306)/gophish_test?charset=utf8&parseTime=True&loc=UTC"
           - db: postgres
             path: "postgres://postgres:gophish@127.0.0.1:5432/gophish_test?sslmode=disable"
     # Every matrix entry starts both servers; only the selected one is used.
