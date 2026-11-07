@@ -136,8 +136,10 @@ func TestMailLogGrouping(t *testing.T) {
 	worker.mailer = lm
 
 	// Trigger the worker, generating the maillogs and sending them to the
-	// mailer
-	worker.processCampaigns(time.Now())
+	// mailer. MySQL rounds fractional seconds when it stores a datetime, which
+	// can put a send date just ahead of time.Now(), so the worker looks one
+	// second further.
+	worker.processCampaigns(time.Now().Add(time.Second))
 
 	// Verify that each slice of maillogs received belong to the same campaign
 	for i := 0; i < 10; i++ {
