@@ -17,10 +17,10 @@ RUN CGO_ENABLED=0 GOOS=$TARGETOS GOARCH=$TARGETARCH \
 # Runtime container
 FROM debian:stable-slim
 
-RUN useradd -m -d /opt/gophish -s /bin/bash app
+RUN useradd -m -u 1000 -d /opt/gophish -s /bin/bash app
 
 RUN apt-get update && \
-	apt-get install --no-install-recommends -y jq libcap2-bin ca-certificates && \
+	apt-get install --no-install-recommends -y jq ca-certificates && \
 	apt-get clean && \
 	rm -rf /var/lib/apt/lists/* /tmp/* /var/tmp/*
 
@@ -36,9 +36,9 @@ COPY static/db/ ./static/db/
 COPY docker/run.sh ./docker/
 COPY VERSION ./
 COPY --chown=app config.json ./
-RUN mkdir -p static/endpoint
-
-RUN setcap 'cap_net_bind_service=+ep' /opt/gophish/gophish
+# The data directory exists in the image, so a volume mounted there inherits
+# the app user as owner.
+RUN mkdir -p static/endpoint data && chown app:app data
 
 USER app
 RUN sed -i 's/127.0.0.1/0.0.0.0/g' config.json
