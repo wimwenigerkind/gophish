@@ -66,7 +66,7 @@ if [ -n "${CONTACT_ADDRESS+set}" ] ; then
         cat config.json.tmp > config.json
 fi
 
-# db_name has to be changed to mysql for mysql connection to work
+# db_name has to be changed to mysql or postgres to use that database
 if [ -n "${DB_NAME+set}" ] ; then
     jq -r \
         --arg DB_NAME "${DB_NAME}" \
